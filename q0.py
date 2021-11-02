@@ -79,11 +79,13 @@ def stop_tokenize(s: str) -> T.List[str]:
     """
 
     word_token = word_tokenize(s)
+    result = []
     for ele in word_token:
         lc_ele = ele.lower()
-        if lc_ele in punctuation or lc_ele in stopwords.words('english'):
-            word_token.remove(ele)
-    return word_token
+        if not (lc_ele in punctuation or lc_ele in stopwords.words('english')):
+            result.append(ele)
+            #word_token.remove(ele)
+    return result
 
 
 

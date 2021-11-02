@@ -96,7 +96,8 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
         retrieve the (PyTorch) vector for a given sense.
     """
     corpus = sorted(corpus, key=len)
-
+    synset_map = {}
+    
     for batch_n in trange(0, len(corpus), batch_size, desc='gathering',
                           leave=False):
         batch = corpus[batch_n:batch_n + batch_size]
@@ -107,7 +108,8 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
                 sentence.append(wsd_token.wordform)
             list_sentence.append(sentence)
         output, offset_mapping = run_bert(list_sentence)
-
+        
+        #print(batch)
 
 
         new_output = []
@@ -121,28 +123,28 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
                         new_output_sentence[-1] = (new_output_sentence[-1]+ output[i][j])/2
             new_output.append(new_output_sentence)
 
-        synset_map = {}
-        m,n = batch.shape[0], batch.shape[1]
-        for i in range(m):
-            for j in range(n):
-                if batch[i][j]:
-                    for synset in batch[i][j]:
+        
+        
+        for i in range(len(batch)):
+            for j in range(len(batch[i])):
+                if len(batch[i][j].synsets)>0:
+                    for synset in batch[i][j].synsets:
                         if synset not in synset_map:
                             synset_map[synset] = [new_output[i][j]]
                         else:
                             synset_map[synset].append(new_output[i][j])
 
 
-        ave_synset_map = {}
-        for synset in synset_map:
-            sum_vector = 0
-            for vector in synset_map[synset]:
-                sum_vector += vector
-            ave_vector = sum_vector/len(synset_map[synset])
-            ave_synset_map[synset] = ave_vector
+        
+    for synset in synset_map:
+        sum_vector = 0
+        for vector in synset_map[synset]:
+            sum_vector += vector
+        ave_vector = sum_vector/len(synset_map[synset])
+        synset_map[synset] = ave_vector
 
-
-        return ave_synset_map
+        #print(ave_synset_map)	
+    return synset_map
 
 
 
@@ -212,11 +214,20 @@ def bert_1nn(batch: T.List[T.List[WSDToken]],
     sense_vectors_norm_matrix = []
     sense_synset = []
     for key in sense_vectors:
+        
         sense_vector = sense_vectors[key]
-        sense_vectors_matrix.append(sense_vector)
+        
+        sense_vector_list = list(sense_vector)
+        sense_vectors_matrix.append(sense_vector_list)
         sense_vectors_norm_matrix.append(norm(sense_vector))
         sense_synset.append(key)
 
+    
+    sense_vectors_matrix = torch.tensor(sense_vectors_matrix)
+    sense_vectors_norm_matrix = torch.tensor(sense_vectors_norm_matrix)
+    #print('sense_vectors_matrix.shape',sense_vectors_matrix.shape)
+    print('sense_vectors_norm_matrix.shape',sense_vectors_norm_matrix.shape)
+    #sense_vectors_norm_matrix = torch.cat(sense_vectors_norm_matrix)
     target_synset = []
     for i in range(len(indices)):
         target_sentence_vectors = []
@@ -225,7 +236,11 @@ def bert_1nn(batch: T.List[T.List[WSDToken]],
             best_sense = mfs(batch[i],index)
             target_vector = new_output[i][index]
             target_vector_norm = norm(target_vector)
-            scores = np.multiply(sense_vectors_matrix,np.transpose(target_vector))/np.multiply(sense_vectors_norm_matrix,np.transpose(target_vector_norm))
+            #print('target_vector',target_vector)
+            print('target_vector_shape',target_vector.shape)
+            print('sense_vectors_matrix.shape',sense_vectors_matrix.shape)
+            #print('target_vector_norm',target_vector_norm)
+            scores = (torch.multiply(sense_vectors_matrix,target_vector))/torch.multiply(sense_vectors_norm_matrix,target_vector_norm)
             score_list = list(np.transpose(scores))
             max_score = max(score_list)
             max_index = score_list.index(max_score)

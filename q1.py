@@ -66,12 +66,10 @@ def lesk(sentence: Sequence[WSDToken], word_index: int) -> Synset:
     best_score = 0
 
     context_map = {}
-    context = ''
+    context = []
     for word in sentence:
-        if word not in context:
-            context += (word.wordform)
-            context += ' '
-    context = stop_tokenize(context)
+        context.append(word.wordform)
+    #context = stop_tokenize(context)
     for word in context:
 
         if word in context_map:
@@ -80,7 +78,7 @@ def lesk(sentence: Sequence[WSDToken], word_index: int) -> Synset:
             context_map[word] = 1
 
 
-    synsets = wn.synset(sentence[word_index].lemma)
+    synsets = wn.synsets(sentence[word_index].lemma)
 
     for synset in synsets:
 
@@ -107,7 +105,7 @@ def lesk(sentence: Sequence[WSDToken], word_index: int) -> Synset:
             best_score = score
     return  best_sense
 
-def create_bag(list,map,synset)->None:
+def create_bag(result_list,result_map,synset)->None:
     definition = stop_tokenize(synset.definition())
     examples = []
 
@@ -115,14 +113,14 @@ def create_bag(list,map,synset)->None:
         tokenize_example = stop_tokenize(example)
         examples.extend(tokenize_example)
     signature = definition + examples
-    list.extend(signature)
+    result_list.extend(signature)
     for sign in signature:
-        if sign not in map:
-            map[sign] = 1
+        if sign not in result_map:
+            result_map[sign] = 1
         else:
-            map[sign] += 1
+            result_map[sign] += 1
 
-def create_total_map(total_map,list,synset) -> None:
+def create_total_map(total_map,result_list,synset) -> None:
     definition = stop_tokenize(synset.definition())
     examples = []
 
@@ -130,7 +128,7 @@ def create_total_map(total_map,list,synset) -> None:
         tokenize_example = stop_tokenize(example)
         examples.extend(tokenize_example)
     signature = definition + examples
-    list.extend(signature)
+    result_list.extend(signature)
     for ele in signature:
         if ele not in total_map:
             total_map[ele] = 0
@@ -165,12 +163,10 @@ def lesk_ext(sentence: Sequence[WSDToken], word_index: int) -> Synset:
 
     context_map = {}
 
-    context = ''
+    context = []
     for word in sentence:
-        if word not in context:
-            context += (word.wordform)
-            context += ' '
-    context = stop_tokenize(context)
+        context.append(word.wordform)
+    
     for word in context:
 
         if word in context_map:
@@ -178,7 +174,7 @@ def lesk_ext(sentence: Sequence[WSDToken], word_index: int) -> Synset:
         else:
             context_map[word] = 1
 
-    synsets = wn.synset(sentence[word_index].lemma)
+    synsets = wn.synsets(sentence[word_index].lemma)
 
     for synset in synsets:
         signature = []
@@ -239,22 +235,20 @@ def lesk_cos(sentence: Sequence[WSDToken], word_index: int) -> Synset:
 
     best_sense = mfs(sentence, word_index)
     best_score = 0
-    context_map = {}
-    context = ''
-    for word in sentence:
-        if word not in context:
-            context += (word.wordform)
-            context += ' '
-    context = stop_tokenize(context)
+    
 
-    for word in context:
-
-        if word not in context_map:
-            context_map[word] = 0
-
-    synsets = wn.synset(sentence[word_index].lemma)
+    synsets = wn.synsets(sentence[word_index].lemma)
 
     for synset in synsets:
+        context_map = {}
+        context = []
+        for word in sentence:
+            context.append(word.wordform)
+    
+
+        for word in context:
+            if word not in context_map:
+                context_map[word] = 0
 
         signature = []
         total_map = context_map
@@ -277,14 +271,16 @@ def lesk_cos(sentence: Sequence[WSDToken], word_index: int) -> Synset:
         for member_holonym in synset.member_holonyms():
             create_total_map(total_map, signature,member_holonym)
 
-        new_context_map = total_map
-        signature_map = total_map
+        new_context_map = total_map.copy()
+        signature_map = total_map.copy()
+        
         for ele in context:
             if ele in new_context_map:
                 new_context_map[ele]+=1
         for ele in signature:
             if ele in signature_map:
                 signature_map[ele]+=1
+
         context_vector = []
         signature_vector = []
         for key in new_context_map:
@@ -295,10 +291,11 @@ def lesk_cos(sentence: Sequence[WSDToken], word_index: int) -> Synset:
 
         context_vector = np.array(context_vector)
         signature_vector = np.array(signature_vector)
-        context_vector_norm = np.linalg.norm(context_vector)
-        signature_vector_norm = np.linalg.norm(signature_vector)
-        if (context_vector_norm != 0 and signature_vector_norm != 0):
-            score = (context_vector / context_vector_norm) * (signature_vector / signature_vector_norm)
+        context_vector_norm = norm(context_vector)
+        signature_vector_norm = norm(signature_vector)
+        if (context_vector_norm*signature_vector_norm != 0):
+            score = np.dot(context_vector,signature_vector)/(np.dot(context_vector_norm,signature_vector_norm))
+            
             if score > best_score:
                 best_sense = synset
                 best_score = score
@@ -335,29 +332,25 @@ def lesk_cos_onesided(sentence: Sequence[WSDToken], word_index: int) -> Synset:
     """
     best_sense = mfs(sentence, word_index)
     best_score = 0
+    synsets = wn.synsets(sentence[word_index].lemma)
     context_map = {}
-    context = ''
+    context = []
     for word in sentence:
-        if word not in context:
-            context += (word.wordform)
-            context += ' '
-    context = stop_tokenize(context)
-
+        context.append(word.wordform)
     for word in context:
 
         if word not in context_map:
-            context_map[word] = 0
-
-    synsets = wn.synset(sentence[word_index].lemma)
-    new_context_map = context_map
+            context_map[word] = 0   
+    new_context_map = context_map.copy()
     for ele in context:
         if ele in context_map:
             new_context_map[ele]+=1
 
     for synset in synsets:
+
         signature = []
         signature_map = {}
-        new_signature_map = context_map
+        new_signature_map = context_map.copy()
         create_bag(signature, signature_map, synset)
         for hyponym in synset.hyponyms():
             create_bag(signature, signature_map, hyponym)
@@ -382,7 +375,7 @@ def lesk_cos_onesided(sentence: Sequence[WSDToken], word_index: int) -> Synset:
 
 
 
-
+        
         context_vector = []
         signature_vector = []
         for key in new_context_map:
@@ -392,16 +385,17 @@ def lesk_cos_onesided(sentence: Sequence[WSDToken], word_index: int) -> Synset:
 
         context_vector = np.array(context_vector)
         signature_vector = np.array(signature_vector)
-        context_vector_norm = np.linalg.norm(context_vector)
-        signature_vector_norm = np.linalg.norm(signature_vector)
+        context_vector_norm = norm(context_vector)
+        signature_vector_norm = norm(signature_vector)
 
 
 
-        if (context_vector_norm != 0 and signature_vector_norm != 0):
-            score = (context_vector / context_vector_norm) * (signature_vector / signature_vector_norm)
+        if (context_vector_norm*signature_vector_norm != 0):
+            score = np.dot(context_vector,signature_vector)/(np.dot(context_vector_norm,signature_vector_norm))         
             if score > best_score:
                 best_sense = synset
                 best_score = score
+
     return  best_sense
 
 
@@ -546,15 +540,13 @@ def lesk_w2v(sentence: Sequence[WSDToken], word_index: int,
 
     best_sense = mfs(sentence, word_index)
     best_score = 0
-    context = ''
+    context = []
     context_set = set()
 
 
     for word in sentence:
-        if word not in context:
-            context += (word.wordform)
-            context += ' '
-    context = stop_tokenize(context)
+        context.append(word.wordform)
+
 
 
 
@@ -567,7 +559,7 @@ def lesk_w2v(sentence: Sequence[WSDToken], word_index: int,
     context_vector = context_vector_sum / len(context_set)
 
 
-    synsets = wn.synset(sentence[word_index].lemma)
+    synsets = wn.synsets(sentence[word_index].lemma)
 
     for synset in synsets:
         signature_set = set()
@@ -577,14 +569,15 @@ def lesk_w2v(sentence: Sequence[WSDToken], word_index: int,
         for sign in signature_set:
             signature_vector_sum += build_vector_for_set(sign,word2vec,vocab)
         signature_vector = signature_vector_sum / len(signature_set)
-        context_vector_norm = np.linalg.norm(context_vector)
-        signature_vector_norm = np.linalg.norm(signature_vector)
+        context_vector_norm = norm(context_vector)
+        signature_vector_norm = norm(signature_vector)
 
-        if (context_vector_norm != 0 and signature_vector_norm != 0):
-            score = (context_vector / context_vector_norm) * (signature_vector / signature_vector_norm)
+        if (context_vector_norm*signature_vector_norm != 0):
+            score = np.dot(context_vector,signature_vector)/(np.dot(context_vector_norm,signature_vector_norm))         
             if score > best_score:
                 best_sense = synset
                 best_score = score
+
     return best_sense
 
 
@@ -598,7 +591,8 @@ def lesk_w2v(sentence: Sequence[WSDToken], word_index: int,
 if __name__ == '__main__':
     np.random.seed(1234)
     eval_data = load_eval()
-    for wsd_func in [mfs, lesk, lesk_ext, lesk_cos, lesk_cos_onesided]:
-        evaluate(eval_data, wsd_func)
+    # for wsd_func in [mfs, lesk, lesk_ext, lesk_cos, lesk_cos_onesided]:
+    #for wsd_func in [mfs, lesk_cos_onesided]:
+        #evaluate(eval_data, wsd_func)
 
     evaluate(eval_data, lesk_w2v, *load_word2vec())
