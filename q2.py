@@ -109,6 +109,7 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
             list_sentence.append(sentence)
         output, offset_mapping = run_bert(list_sentence)
 
+
         #print(batch)
 
 
@@ -117,22 +118,28 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
             new_output_sentence = []
             count = 0
             for j in range(len(offset_mapping[i])):
-
                 if offset_mapping[i][j][1]!=0:
+
                     if offset_mapping[i][j][0] ==0:
                         if count > 0:
                             new_output_sentence[-1] = new_output_sentence[-1]/(count+1)
                         count = 0
                         new_output_sentence.append(output[i][j])
                     elif offset_mapping[i][j][0]!=0:
+
                         new_output_sentence[-1] = (new_output_sentence[-1]+ output[i][j])
                         count+=1
+
+                        #new_output_sentence[-1] = (new_output_sentence[-1]+ output[i][j])
+
+
             new_output.append(new_output_sentence)
 
 
 
         for i in range(len(batch)):
             for j in range(len(batch[i])):
+
                 if len(batch[i][j].synsets)>0:
                     for synset in batch[i][j].synsets:
                         if synset not in synset_map:
@@ -149,7 +156,11 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
         ave_vector = sum_vector/len(synset_map[synset])
         synset_map[synset] = ave_vector
 
+
         #print(ave_synset_map)
+
+
+
     return synset_map
 
 
