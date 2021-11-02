@@ -129,6 +129,9 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
 
                         new_output_sentence[-1] = (new_output_sentence[-1]+ output[i][j])
                         count+=1
+                        if j == len(offset_mapping[i])-1:
+                            new_output_sentence[-1] = new_output_sentence[-1] / (count + 1)
+                            count=0
 
                         #new_output_sentence[-1] = (new_output_sentence[-1]+ output[i][j])
 
