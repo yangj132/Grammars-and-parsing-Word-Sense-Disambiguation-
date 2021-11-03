@@ -108,11 +108,6 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
                 sentence.append(wsd_token.wordform)
             list_sentence.append(sentence)
         output, offset_mapping = run_bert(list_sentence)
-
-
-        #print(batch)
-
-
         new_output = []
         for i in range(len(offset_mapping)):
             new_output_sentence = []
@@ -133,7 +128,7 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
                             new_output_sentence[-1] = new_output_sentence[-1] / (count + 1)
                             count=0
 
-                        #new_output_sentence[-1] = (new_output_sentence[-1]+ output[i][j])
+                        
 
 
             new_output.append(new_output_sentence)
@@ -160,9 +155,9 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
         synset_map[synset] = ave_vector
 
 
-        #print(ave_synset_map)
+        
 
-
+    print('hello')
 
     return synset_map
 
@@ -209,6 +204,7 @@ def bert_1nn(batch: T.List[T.List[WSDToken]],
     Returns:
         predictions: The predictions of the correct sense for the given words.
     """
+    #print('hi')
     list_sentence = []
     for sentence_token in batch:
         sentence = []
@@ -257,14 +253,17 @@ def bert_1nn(batch: T.List[T.List[WSDToken]],
             target_vector = new_output[i][index]
             target_vector_norm = norm(target_vector)
             #print('target_vector',target_vector)
-            print('target_vector_shape',target_vector.shape)
-            print('sense_vectors_matrix.shape',sense_vectors_matrix.shape)
+            #print('target_vector_shape',target_vector.shape)
+            #print('sense_vectors_matrix.shape',sense_vectors_matrix.shape)
             #print('target_vector_norm',target_vector_norm)
-            scores = (torch.multiply(sense_vectors_matrix,target_vector))/torch.multiply(sense_vectors_norm_matrix,target_vector_norm)
-            score_list = list(np.transpose(scores))
-            max_score = max(score_list)
-            max_index = score_list.index(max_score)
-            if max_score>best_score:
+            scores = (torch.matmul(sense_vectors_matrix,target_vector))/(sense_vectors_norm_matrix*target_vector_norm)
+            #print('scores shape',scores.shape)
+            #print('scores argmax index',torch.argmax(scores))
+            max_index = int(torch.argmax(scores).item())
+            #score_list = list(np.transpose(scores))
+            #max_score = max(score_list)
+            #max_index = score_list.index(max_index)
+            if len(sense_vectors_matrix)>0:
                 target_sentence_vectors.append(wn.synset(sense_synset[max_index]))
             else:
                 target_sentence_vectors.append(best_sense)
